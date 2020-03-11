@@ -1,4 +1,4 @@
-# katago 手机版
+# katago 围棋复盘手机版
 
 随着alphago的发展，越来越多围棋爱好者选择使用围棋ai 进行复盘。包括但不限于leela  katago。
 
