@@ -14,6 +14,7 @@
 
 #### 1 安装java环境
 
+
 #### 2 下载lizzie https://github.com/featurecat/lizzie/releases
 
  或者下载lizzieyzy增强版本
