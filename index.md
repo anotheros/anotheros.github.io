@@ -1,37 +1,69 @@
-## katago 手机版
+#katago 手机版
 
-You can use the [editor on GitHub](https://github.com/anotheros/anotheros.github.io/edit/master/index.md) to maintain and preview the content for your website in Markdown files.
+随着alphago的发展，越来越多围棋爱好者选择使用围棋ai 进行复盘。包括但不限于leela  katago。
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+而katago相比其他ai而言，更具有优势。例如 支持 让子、形势判断、不退让等等。
 
-### Markdown
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
-```markdown
-Syntax highlighted code block
+下面介绍如果在pc和手机上使用katago进行复盘与对弈
 
-# Header 1
-## Header 2
-### Header 3
+##pc上使用
 
-- Bulleted
-- List
 
-1. Numbered
-2. List
 
-**Bold** and _Italic_ and `Code` text
+![](img/1.png)
 
-[Link](url) and ![Image](src)
+#### 1 安装java环境
+
+#### 2 下载lizzie https://github.com/featurecat/lizzie/releases
+
+ 或者下载lizzieyzy增强版本
+
+#### 3 下载katago 和权重 https://github.com/lightvector/KataGo/releases
+
+mac 用户可以自行编译 或者 使用brew 安装
+
+```shell
+brew install katago
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+#### 4 修改 config.txt 里 engine-command
 
-### Jekyll Themes
+```
+C:\katago  gtp -config C:\gtp.cfg -model C:\g170e-b20c256x2-s2430231552-d525879064.bin.gz
+```
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/anotheros/anotheros.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+mac 用户大概如下
+
+```shell
+/usr/local/Cellar/katago/1.3.2/bin/katago gtp -config /usr/local/Cellar/katago/1.3.2/share/katago/configs/gtp_example.cfg -model /usr/local/Cellar/katago/1.3.2/share/katago/g170e-b15c192-s1672170752-d466197061.txt.gz
+```
+
+双击 lizzie即可运行。 初次运行需要等待较长时间
+
+## katago 手机版
+
+![](img/2.png)
+手机版正在内测中
+
+- [x] 支持远程复盘，使用自己的pc 自己的显卡，无需购买云算力。
+- [x] 操作简单，在手机端与电脑端登录账户即可；
+- [x] 复盘棋谱分享；
+- [x] 查看别人分享的棋谱；
+- [x] 本地记谱；
+- [x] katago
+- [x] 让子
+- [x] 多路棋盘
+- [x] 与ai对弈 且可选同等棋力
+- [x] ai形势判断
+- [x] 实时复盘
+- [x] 离线复盘
 
 ### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+qq群 [331953595](https://shang.qq.com/wpa/qunwpa?idkey=fea97bef5dad51a75755104781c169998e55b6cfa49d88fc23b5dc7db875bd2c)
+
+加站长微信
+
+<img src="img/WX.png" style="zoom:50%;" />
