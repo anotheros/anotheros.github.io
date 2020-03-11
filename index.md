@@ -1,14 +1,12 @@
-#katago 手机版
+# katago 手机版
 
 随着alphago的发展，越来越多围棋爱好者选择使用围棋ai 进行复盘。包括但不限于leela  katago。
 
 而katago相比其他ai而言，更具有优势。例如 支持 让子、形势判断、不退让等等。
 
-
-
 下面介绍如果在pc和手机上使用katago进行复盘与对弈
 
-##pc上使用
+## pc上使用
 
 
 
@@ -45,7 +43,7 @@ mac 用户大概如下
 ## katago 手机版
 
 ![](img/2.png)
-手机版正在内测中
+
 
 - [x] 支持远程复盘，使用自己的pc 自己的显卡，无需购买云算力。
 - [x] 操作简单，在手机端与电脑端登录账户即可；
@@ -61,6 +59,8 @@ mac 用户大概如下
 - [x] 离线复盘
 
 ### Support or Contact
+
+手机版正在内测中。加群免费内测。正式版收费
 
 qq群 [331953595](https://shang.qq.com/wpa/qunwpa?idkey=fea97bef5dad51a75755104781c169998e55b6cfa49d88fc23b5dc7db875bd2c)
 
