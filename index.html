@@ -1,106 +1,10 @@
 <!DOCTYPE html>
-<!-- saved from url=(0018)https://katago.io/ -->
-<html lang="en-US"><script type="text/javascript">(function inject() {
-    window.krU2F = true;
-    const chrome = window['chrome'];
-    function injectMessagePort() {
-        const nativeRuntime = {
-            connect: chrome.runtime.connect,
-            sendMessage: chrome.runtime.sendMessage,
-        };
-        chrome.runtime.connect = function (extensionId, connectInfo) {
-            if (extensionId === 'klnjmillfildbbimkincljmfoepfhjjj'
-                || extensionId === 'kmendfapggjehodndflmmgagdbamhnfd') {
-                const fallbackPort = nativeRuntime.connect(extensionId, connectInfo);
-                const requests = {};
-                let requestCounter = 0;
-                const port = {
-                    krPort: true,
-                    name: connectInfo.name,
-                    onDisconnect: {
-                        addListener(l) {
-                            //  TODO: if fallback is not necessary, then
-                            //  fallbackPort.onDisconnect may be a false
-                            //  failure since Krypton can service the request
-                            //  regardless of whether connecting to the
-                            //  fallback extension succeeds
-                            fallbackPort.onDisconnect.addListener(l);
-                        },
-                    },
-                    onMessage: {
-                        addListener(l) {
-                            fallbackPort.onMessage.addListener(l);
-                            window.addEventListener('message', function (evt) {
-                                if (evt.origin !== window.location.origin) {
-                                    console.error(`event from origin ${evt.origin}, not ${window.location.origin}`);
-                                    return;
-                                }
-                                const responseTypes = [
-                                    'u2f_get_api_version_response',
-                                    'u2f_register_response',
-                                    'u2f_sign_response',
-                                    'webauthn_register_response',
-                                    'webauthn_sign_response',
-                                ];
-                                if (responseTypes.indexOf(evt.data.type) >= 0) {
-                                    const requestId = evt.data.requestId;
-                                    if (evt.data.responseData && evt.data.responseData.fallback) {
-                                        if (requests[requestId]) {
-                                            try {
-                                                fallbackPort.postMessage(requests[requestId]);
-                                            }
-                                            catch (e) {
-                                                console.error(e);
-                                            }
-                                        }
-                                    }
-                                    else {
-                                        l(evt.data);
-                                    }
-                                    delete (requests[requestId]);
-                                }
-                            }, true);
-                        },
-                    },
-                    disconnect() {
-                        return;
-                    },
-                    postMessage(msg) {
-                        if (msg.type === 'u2f_get_api_version_request') {
-                            const response = {
-                                requestId: msg.requestId,
-                                responseData: {
-                                    js_api_version: 1.1,
-                                },
-                                type: 'u2f_get_api_version_response',
-                            };
-                            window.postMessage(response, window.location.origin);
-                        }
-                        else if (msg.type === 'u2f_sign_request'
-                            || msg.type === 'u2f_register_request'
-                            || msg.type === 'webauthn_sign_request') {
-                            //  don't overwrite requestId set by page
-                            msg.requestId = msg.requestId || ++requestCounter;
-                            requests[msg.requestId] = msg;
-                            window.postMessage(msg, window.location.origin);
-                        }
-                        else {
-                            console.warn('unhandled port message ' + JSON.stringify(msg));
-                        }
-                    },
-                };
-                return port;
-            }
-            else {
-                return nativeRuntime.connect.bind(chrome.runtime)(extensionId, connectInfo);
-            }
-        };
-    }
-    injectMessagePort();
-})();</script><head>
+<html lang="en-US">
+    <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="keywords" content="katago,围棋,leela,leelazero,alphago,围棋复盘" />
     <meta name="description" content="katago手机版围棋复盘" />
+    <meta name="baidu-site-verification" content="w4UL9bR7JJ" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=0, user-scalable=no"/>
     <meta content="yes" name="apple-mobile-web-app-capable" />
     <meta content="telephone=no,email=no" name="format-detection" />
@@ -113,12 +17,30 @@
 
 <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>katago 围棋复盘手机版 </title>
-<meta name="generator" content="Jekyll v3.8.5">
 <meta property="og:title" content="katago 围棋复盘手机版">
 <meta property="og:locale" content="en_US">
 <link rel="canonical" href="https://katago.io/">
 <meta property="og:url" content="https://katago.io/">
 <meta property="og:site_name" content="katago.io">
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-15892875-24"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-15892875-24');
+</script>
+<script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?8a84daa429f2f30dc35352e1cfa989d7";
+      var s = document.getElementsByTagName("script")[0]; 
+      s.parentNode.insertBefore(hm, s);
+    })();
+    </script>
+    
 <script type="application/ld+json">
 {"@type":"WebSite","headline":"katago 围棋复盘手机版","url":"https://katago.io/","name":"katago.io","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
