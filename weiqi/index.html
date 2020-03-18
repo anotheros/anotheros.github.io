@@ -16,7 +16,7 @@
 }
 window.onload = function () {
   var  value = getQueryVariable("id")
-    if (!value) {
+    if (!(value === null)){
         var o1 = document.getElementById("main");
     o1.setAttribute("data-wgo",  "sgf/"+value + ".sgf");
     var o2 = document.getElementById("main4");
