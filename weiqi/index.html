@@ -10,13 +10,18 @@
     <script>
         function getQueryVariable(variable)
 {
-    var reg = new RegExp("(^|&)"+ name +"=([^&]*)(&|$)");
-        var r = window.location.search.substr(1).match(reg);
-        if (r!=null) return unescape(r[2]); return null;
+    var query = window.location.search.substring(1);
+       var vars = query.split("&");
+       for (var i=0;i<vars.length;i++) {
+               var pair = vars[i].split("=");
+               if(pair[0] == variable){return pair[1];}
+       }
+       return(false);
+
 }
 window.onload = function () {
   var  value = getQueryVariable("id")
-    if (!(value === null)){
+    if (value){
         var o1 = document.getElementById("main");
     o1.setAttribute("data-wgo",  "sgf/"+value + ".sgf");
     var o2 = document.getElementById("main4");
@@ -25,14 +30,14 @@ window.onload = function () {
      o3.setAttribute("href","sgf/"+value+ ".sgf");
     o3.setAttribute("download", "sgf/"+value+".sgf");
     } else {
-      var  value = getQueryVariable("url")
+      var  urls = getQueryVariable("url")
         var o1 = document.getElementById("main");
-    o1.setAttribute("data-wgo",  value );
+    o1.setAttribute("data-wgo",  urls );
     var o2 = document.getElementById("main4");
-    o2.setAttribute("href", value );
+    o2.setAttribute("href", urls );
     var o3 = document.getElementById("main2");
-     o3.setAttribute("href",value);
-    o3.setAttribute("download", value);
+     o3.setAttribute("href",urls);
+    o3.setAttribute("download", urls);
     }
     
 }
