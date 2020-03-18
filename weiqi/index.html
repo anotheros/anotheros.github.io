@@ -10,23 +10,31 @@
     <script>
         function getQueryVariable(variable)
 {
-       var query = window.location.search.substring(1);
-       var vars = query.split("&");
-       for (var i=0;i<vars.length;i++) {
-               var pair = vars[i].split("=");
-               if(pair[0] == variable){return pair[1];}
-       }
-       return(false);
+    var reg = new RegExp("(^|&)"+ name +"=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r!=null) return unescape(r[2]); return null;
 }
 window.onload = function () {
-    value = getQueryVariable("id")
-    var o = document.getElementById("main");
-                    o.setAttribute("data-wgo",  "sgf/"+value + ".sgf");
-                    var o = document.getElementById("main4");
-                    o.setAttribute("href", "sgf/"+value + ".sgf");
-                    var o = document.getElementById("main2");
-                    o.setAttribute("href","sgf/"+value+ ".sgf");
-                    o.setAttribute("download", "sgf/"+value+".sgf");
+  var  value = getQueryVariable("id")
+    if (!value) {
+        var o1 = document.getElementById("main");
+    o1.setAttribute("data-wgo",  "sgf/"+value + ".sgf");
+    var o2 = document.getElementById("main4");
+    o2.setAttribute("href", "sgf/"+value + ".sgf");
+    var o3 = document.getElementById("main2");
+     o3.setAttribute("href","sgf/"+value+ ".sgf");
+    o3.setAttribute("download", "sgf/"+value+".sgf");
+    } else {
+      var  value = getQueryVariable("url")
+        var o1 = document.getElementById("main");
+    o1.setAttribute("data-wgo",  value );
+    var o2 = document.getElementById("main4");
+    o2.setAttribute("href", value );
+    var o3 = document.getElementById("main2");
+     o3.setAttribute("href",value);
+    o3.setAttribute("download", value);
+    }
+    
 }
     </script>
     <!-- Global site tag (gtag.js) - Google Analytics -->
