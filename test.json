@@ -1,1 +1,1 @@
-{"ws":"ws://ws.katago.io","api":"https://api.katago.io/"}
+{"ws":"ws://ws.katago.io","api":"https://api.katago.io/","version":"2.2.2","build":26,"msg":"支持ikatago","forced":false}
