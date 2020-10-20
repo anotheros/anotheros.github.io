@@ -1,1 +1,1 @@
-{"ws":"ws://47.92.159.180:7000","api":"http://47.92.159.180:7070/","version":"2.2.2","build":26,"msg":"支持ikatago","strategy":[{"build":25,"level":0}]}
+{"ws":"ws://47.92.159.180:7000","api":"http://47.92.159.180:7070/","version":"2.2.2","build":26,"msg":"支持ikatago","strategy":[{"build":25,"level":0}],"pro":{"ai":{"ws":0,"local":1,"ikatago":1,"customizews":1},"toolbox":{"play":0,"analyze":1,"tryplay":1,"continueplay":1}}}
