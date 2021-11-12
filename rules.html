@@ -1,0 +1,796 @@
+
+<!-- saved from url=(0047)https://lightvector.github.io/KataGo/rules.html -->
+<html class="translated-ltr"><script type="text/javascript">(function inject() {
+    window.krU2F = true;
+    const chrome = window['chrome'];
+    function injectMessagePort() {
+        const nativeRuntime = {
+            connect: chrome.runtime.connect,
+            sendMessage: chrome.runtime.sendMessage,
+        };
+        chrome.runtime.connect = function (extensionId, connectInfo) {
+            if (extensionId === 'klnjmillfildbbimkincljmfoepfhjjj'
+                || extensionId === 'kmendfapggjehodndflmmgagdbamhnfd') {
+                const fallbackPort = nativeRuntime.connect(extensionId, connectInfo);
+                const requests = {};
+                let requestCounter = 0;
+                const port = {
+                    krPort: true,
+                    name: connectInfo.name,
+                    onDisconnect: {
+                        addListener(l) {
+                            //  TODO: if fallback is not necessary, then
+                            //  fallbackPort.onDisconnect may be a false
+                            //  failure since Krypton can service the request
+                            //  regardless of whether connecting to the
+                            //  fallback extension succeeds
+                            fallbackPort.onDisconnect.addListener(l);
+                        },
+                    },
+                    onMessage: {
+                        addListener(l) {
+                            fallbackPort.onMessage.addListener(l);
+                            window.addEventListener('message', function (evt) {
+                                if (evt.origin !== window.location.origin) {
+                                    console.error(`event from origin ${evt.origin}, not ${window.location.origin}`);
+                                    return;
+                                }
+                                const responseTypes = [
+                                    'u2f_get_api_version_response',
+                                    'u2f_register_response',
+                                    'u2f_sign_response',
+                                    'webauthn_register_response',
+                                    'webauthn_sign_response',
+                                ];
+                                if (responseTypes.indexOf(evt.data.type) >= 0) {
+                                    const requestId = evt.data.requestId;
+                                    if (evt.data.responseData && evt.data.responseData.fallback) {
+                                        if (requests[requestId]) {
+                                            try {
+                                                fallbackPort.postMessage(requests[requestId]);
+                                            }
+                                            catch (e) {
+                                                console.error(e);
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        l(evt.data);
+                                    }
+                                    delete (requests[requestId]);
+                                }
+                            }, true);
+                        },
+                    },
+                    disconnect() {
+                        return;
+                    },
+                    postMessage(msg) {
+                        if (msg.type === 'u2f_get_api_version_request') {
+                            const response = {
+                                requestId: msg.requestId,
+                                responseData: {
+                                    js_api_version: 1.1,
+                                },
+                                type: 'u2f_get_api_version_response',
+                            };
+                            window.postMessage(response, window.location.origin);
+                        }
+                        else if (msg.type === 'u2f_sign_request'
+                            || msg.type === 'u2f_register_request'
+                            || msg.type === 'webauthn_sign_request') {
+                            //  don't overwrite requestId set by page
+                            msg.requestId = msg.requestId || ++requestCounter;
+                            requests[msg.requestId] = msg;
+                            window.postMessage(msg, window.location.origin);
+                        }
+                        else {
+                            console.warn('unhandled port message ' + JSON.stringify(msg));
+                        }
+                    },
+                };
+                return port;
+            }
+            else {
+                return nativeRuntime.connect.bind(chrome.runtime)(extensionId, connectInfo);
+            }
+        };
+    }
+    injectMessagePort();
+})();</script><script type="text/javascript" src="chrome-extension://madlgmccpddkhohkdobabokeecnjonhl/js/inject_webauthn.js"></script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<style>
+.flex-vertical {
+  display: flex;
+  flex-flow: column;
+}
+.flex-horizontal {
+  display: flex;
+  flex-flow: row;
+}
+
+.definition {
+  font-weight: bold;
+}
+.condition {
+  font-weight: bold;
+}
+.gameEnd {
+  font-weight: bold;
+  text-decoration: underline;
+}
+.note {
+  margin-bottom: 1em;
+}
+
+.genericRule {
+  color: #000000;
+}
+.koRule {
+  color: #990000;
+}
+.scoringRule {
+  color: #007755;
+}
+.taxRule {
+  color: #4455ff;
+}
+.multiStoneSuicide {
+  color: #aa00aa;
+}
+.hasButton {
+  color: #666600;
+}
+.selfPlayOpts {
+  color: #0088bb;
+}
+.whiteHandicapBonus {
+  color: #666666;
+}
+
+button {
+  margin: 5px;
+}
+
+ol {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+ul {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+li {
+  margin-bottom: 0.5em;
+}
+li > ol li {
+  margin-bottom: 0.2em;
+}
+li > ul li {
+  margin-bottom: 0.2em;
+}
+
+body {
+  margin-bottom: 2em;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.komi {
+  color:
+}
+
+</style>
+
+<script>
+
+function updateName(name) {
+  elts = document.getElementsByClassName(name);
+  for(var j = 0; j<elts.length; j++) {
+    var classList = elts[j].className.split(" ");
+    var needRules = false;
+    for(var k = 0; k<classList.length; k++) {
+      var box = document.getElementById(classList[k]);
+      if(box === null)
+        continue;
+      if(box.checked) {
+        needRules = true;
+        break;
+      }
+    }
+
+    elts[j].style.display = needRules ? "" : "none";
+  }
+};
+
+function updateEverything() {
+  var inputs = document.getElementsByTagName("input");
+  for(var i = 0; i<inputs.length; i++) {
+    if(inputs[i].type == "checkbox") {
+      updateName(inputs[i].id);
+    }
+  }
+};
+
+function checkEverything() {
+  var inputs = document.getElementsByTagName("input");
+  for(var i = 0; i<inputs.length; i++) {
+    if(inputs[i].type == "checkbox") {
+      inputs[i].checked = true;
+    }
+  }
+  updateEverything();
+};
+
+function checkNames(names) {
+  var inputs = document.getElementsByTagName("input");
+  for(var i = 0; i<inputs.length; i++) {
+    if(inputs[i].type == "checkbox")
+      inputs[i].checked = names.includes(inputs[i].id);
+  }
+  updateEverything();
+};
+
+function checkChineseLike() {
+  checkNames([
+    "koSimple",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN"
+  ]);
+};
+
+function checkChineseOGS() {
+  checkNames([
+    "koPositional",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN"
+  ]);
+};
+
+function checkAGALike() {
+  checkNames([
+    "koSituational",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN1"
+  ]);
+};
+
+function checkStoneScoring() {
+  checkNames([
+    "koSimple",
+    "scoringArea",
+    "taxAll",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed"
+  ]);
+};
+
+function checkNZLike() {
+  checkNames([
+    "koSituational",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideAllowed",
+    "buttonNotUsed",
+    "whiteHandicapBonus0"
+  ]);
+};
+
+function checkJapaneseLike() {
+  checkNames([
+    "koSimple",
+    "scoringTerritory",
+    "taxSeki",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonus0"
+  ]);
+};
+
+function checkTrompTaylor() {
+  checkNames([
+    "koPositional",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideAllowed",
+    "buttonNotUsed"
+  ]);
+};
+
+
+window.onload = function() {
+  let inputs = document.getElementsByTagName("input");
+  for(let i = 0; i<inputs.length; i++) {
+    if(inputs[i].type == "checkbox") {
+      inputs[i].addEventListener("change", function() {
+        updateName(inputs[i].id);
+      });
+    }
+  }
+
+  checkEverything();
+};
+</script>
+
+<link type="text/css" rel="stylesheet" charset="UTF-8" href="./rules_files/translateelement.css"></head>
+<body>
+
+<h1><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">KataGo 支持的围棋规则（第 2 版） </font></font></h1><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+本页面描述了 KataGo 实施的完整严格规则。</font><font style="vertical-align: inherit;">在 2021 年初左右</font><font style="vertical-align: inherit;">从</font></font><a href="https://lightvector.github.io/KataGo/rulesv1.html"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">规则版本 1</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">更新，</font><font style="vertical-align: inherit;">以解决基本双高死亡与日本规则不匹配的问题。</font><font style="vertical-align: inherit;">KataGo 1.8 及更高版本支持这些规则。</font><font style="vertical-align: inherit;">此外，在 2021 年之前或 2021 年初使用旧规则训练的神经网络可能无法正确评估此类情况，即使使用 KataGo 1.8 或更高版本 - 版本*和*网络都需要是最新的。</font><font style="vertical-align: inherit;">从版本 1 也更新了一些小的措辞错别字。
+
+</font></font><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+还希望本文档可以作为任何人自己实施此类规则的任何子集的参考 - 包括严格的近乎日本的规则，机器人可以将其用于自我游戏或完全不需要外部裁决或争议的竞争性比赛分辨率或任何其他协议，除了机器人进行普通播放。
+</font></font></p><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+我相信近乎日本的规则应该正确处理各种各样的细节，只要双方球员都能理性地最大化他们的分数。</font><font style="vertical-align: inherit;">例如：
+
+</font></font></p><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 无论外部ko威胁如何，弯角四人都会死。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 关中没有领土，包括没有领土的单边贵妇（简单领土规则的常见怪癖）。
+</font></font></li><li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 双刻关和千年刻是关，双刻死是死。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 一个人应该完成直接劫而不是让它空着，即使有足够的劫威胁可以通过并且仍然让它空着，但多步劫不需要完成。</font></font></li>
+</ul><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+一个已知的区别是</font></font><a href="https://senseis.xmp.net/?TorazuSanmoku"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">三分不擒拿</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，还有一些其他的异域规则兽也会造成差异，但这些应该是非常非常罕见的。
+</font></font><p>
+
+</p><hr>
+<h2><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">参数</font></font></h2>
+<hr><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+
+单击按钮或单独取消选中某些框以隐藏您不关心的规则的部分逻辑。
+</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+注意：一些声称实施某些规则的在线服务器实际上可能有所不同。</font><font style="vertical-align: inherit;">例如，OGS 对中国规则的实施使用位置超子，这与中国围棋比赛中通常只使用简单的 ko 规则的实际做法不同。</font><font style="vertical-align: inherit;">如果您要实现一个机器人在服务器上运行，请务必查看详细信息！
+</font></font><br>
+
+<div class="flex-horizontal">
+<button onclick="checkEverything()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">选择所有</font></font></button>
+<button onclick="checkChineseLike()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">中国式规矩</font></font></button>
+<button onclick="checkJapaneseLike()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">类似日本的规则</font></font></button>
+<button onclick="checkTrompTaylor()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">特罗普-泰勒规则</font></font></button>
+<button onclick="checkChineseOGS()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">OGS/KGS“中国”式规则</font></font></button>
+<button onclick="checkAGALike()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">类似 AGA 的规则</font></font></button>
+<button onclick="checkNZLike()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">类似新西兰的规则</font></font></button>
+<button onclick="checkStoneScoring()"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">石头评分规则</font></font></button>
+</div>
+
+<ul>
+<li class="genericRule"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">X,Y</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> :</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">表示棋盘大小的整数。</font></font></li>
+<li class="genericRule"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Komi</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> :</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">整数或半整数表示给予白棋第二名的补偿。</font></font></li>
+<li class="koRule"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">KoRule</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">禁止重复规则的变体。</font></font><a href="https://senseis.xmp.net/?KoRules"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">https://senseis.xmp.net/?KoRules</font></font></a>
+<div class="flex-vertical">
+<span><input type="checkbox" id="koSimple" name="koRule" value="koSimple"><label for="koSimple"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">简单的</font></font></label></span>
+<span><input type="checkbox" id="koPositional" name="koRule" value="koPositional"><label for="koPositional"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">位置超子</font></font></label></span>
+<span><input type="checkbox" id="koSituational" name="koRule" value="koSituational"><label for="koSituational"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">情景超人</font></font></label></span>
+</div>
+</li>
+<li class="scoringRule"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ScoringRule</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">定义完成游戏的分数是多少。</font></font><a href="https://senseis.xmp.net/?Scoring"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">https://senseis.xmp.net/?计分</font></font></a>
+<div class="flex-vertical">
+<span><input type="checkbox" id="scoringArea" name="scoringRule" value="scoringArea"><label for="scoringArea"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">面积（算石头和包围的空点，“中国”式）</font></font></label></span>
+<span><input type="checkbox" id="scoringTerritory" name="scoringRule" value="scoringTerritory"><label for="scoringTerritory"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">领土（计数捕获并包围空点，类似“日本”）</font></font></label></span>
+</div>
+</li>
+<li class="taxRule"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">TaxRule</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对评分规则的</font><span class="definition"><font style="vertical-align: inherit;">小幅</font></span><font style="vertical-align: inherit;">调整，指示哪些空分（如果有）可能不会被计分。
+</font></font><div class="flex-vertical">
+<span><input type="checkbox" id="taxNone" name="taxRule" value="taxNone"><label for="taxNone"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">无（周围的空点总是计数）</font></font></label></span>
+<span><input type="checkbox" id="taxSeki" name="taxRule" value="taxSeki"><label for="taxSeki"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">关（关中被组包围的空点不计算在内）</font></font></label></span>
+<span><input type="checkbox" id="taxAll" name="taxRule" value="taxAll"><label for="taxAll"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">全部（所有组最多征收 2 点被包围的空点——即关中被组包围的空点不计算在内，生活组每个被征收 2 点）</font></font></label></span>
+</div>
+</li>
+<li class="multiStoneSuicide"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">MultiStoneSuicide</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> :</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是否允许多个石头自杀。</font><font style="vertical-align: inherit;">（在这些规则中，永远不允许自杀式移动，只杀死刚出的石头，不杀死其他任何东西，保持棋盘不变）
+</font></font><div class="flex-vertical">
+<span><input type="checkbox" id="multiStoneSuicideAllowed" name="multiStoneSuicide" value="multiStoneSuicideAllowed"><label for="multiStoneSuicideAllowed"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">允许</font></font></label></span>
+<span><input type="checkbox" id="multiStoneSuicideDisallowed" name="multiStoneSuicide" value="multiStoneSuicideDisallowed"><label for="multiStoneSuicideDisallowed"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">不允许</font></font></label></span>
+</div>
+</li>
+<li class="hasButton"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">按钮</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是否将半分奖励给第一个能够传球的球员。</font><font style="vertical-align: inherit;">（例如，略微奖励残局效率，部分协调区域和领土得分）。
+</font></font><div class="flex-vertical">
+<span><input type="checkbox" id="buttonUsed" name="hasButton" value="buttonUsed"><label for="buttonUsed"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">用过的</font></font></label></span>
+<span><input type="checkbox" id="buttonNotUsed" name="hasButton" value="buttonNotUsed"><label for="buttonNotUsed"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">未使用</font></font></label></span>
+</div>
+</li>
+<li class="whiteHandicapBonus"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">WhiteHandicapBonus</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> :</font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">当黑棋得到 N 个</font><span class="definition"><font style="vertical-align: inherit;">棋子时，</font></span><font style="vertical-align: inherit;">白棋在让分盘游戏中获得多少奖励分。</font><font style="vertical-align: inherit;">KataGo 支持差点游戏，但为简单起见，本规则文档并未对其进行描述。</font><font style="vertical-align: inherit;">包含这些复选框只是为了提供方便的参考，了解这种让分游戏得分的怪癖在规则集之间有何不同。
+</font></font><div class="flex-vertical">
+<span><input type="checkbox" id="whiteHandicapBonus0" name="whiteHandicapBonus" value="whiteHandicapBonus0"><label for="whiteHandicapBonus0">0</label></span>
+<span><input type="checkbox" id="whiteHandicapBonusN1" name="whiteHandicapBonus" value="whiteHandicapBonusN1"><label for="whiteHandicapBonusN1"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">N-1</font></font></label></span>
+<span><input type="checkbox" id="whiteHandicapBonusN" name="whiteHandicapBonus" value="whiteHandicapBonusN"><label for="whiteHandicapBonusN"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">N</font></font></label></span>
+</div>
+</li>
+<li class="selfPlayOpts"><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">SelfPlayOpts</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> : </font></font><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">KataGo 用于自我</font><span class="definition"><font style="vertical-align: inherit;">对弈的</font></span><font style="vertical-align: inherit;">一些优化。</font><font style="vertical-align: inherit;">这些理论上可以在涉及精心构建的超级历史记录等极其人为的情况下对正确游戏产生影响，但出于所有实际目的，这些规则修改与没有这些修改的规则兼容，并通过更快的游戏结束加速自我游戏，即使一个或两个玩家想要延长游戏时间。
+</font></font><div class="flex-vertical">
+<span><input type="checkbox" id="selfPlayOptsEnabled" name="selfPlayOpts" value="selfPlayOptsEnabled"><label for="selfPlayOptsEnabled"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">启用</font></font></label></span>
+</div>
+</li>
+</ul>
+
+<hr>
+
+<h2><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+规则
+</font></font></h2>
+
+<hr>
+
+<h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+基本定义
+</font></font></h3>
+
+<ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 围棋由两个对立的棋手黑棋和白棋在 X 乘 Y 矩形点阵上进行。 </font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">网格上的每个点都可以是黑色或白色，也可以是空的。</font><font style="vertical-align: inherit;">所有点的着色状态一起是</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">网格着色</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果</font><font style="vertical-align: inherit;">点</font><font style="vertical-align: inherit;">水平或垂直接触，则</font><font style="vertical-align: inherit;">点是</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">相邻的/边界的</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在一组点中，</font><font style="vertical-align: inherit;">如果一个点与另一个点相邻或连接到与另一个相邻</font><font style="vertical-align: inherit;">的点，则两个点是</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">连接</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">的。</font><font style="vertical-align: inherit;">如果集合中的</font><font style="vertical-align: inherit;">每对点都在该集合内</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">连接，</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">则</font><font style="vertical-align: inherit;">该集合本身就是</font><span class="definition"><font style="vertical-align: inherit;">连接的</font></span><font style="vertical-align: inherit;">。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果该点与该组的某个成员相邻，则</font><font style="vertical-align: inherit;">一组点和不在该组中的点是</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">相邻的/边界</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">的。</font><font style="vertical-align: inherit;">如果一</font><font style="vertical-align: inherit;">组点</font><font style="vertical-align: inherit;">至少</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">与</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">另一</font><font style="vertical-align: inherit;">点</font><span class="definition"><font style="vertical-align: inherit;">相邻</font></span><font style="vertical-align: inherit;">，则两组不相交的点是</font><span class="definition"><font style="vertical-align: inherit;">相邻的/相邻</font></span><font style="vertical-align: inherit;">的。</font><font style="vertical-align: inherit;">如果一组点</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">与该颜色的</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">至少一个点相邻，则该</font><font style="vertical-align: inherit;">点</font><span class="definition"><font style="vertical-align: inherit;">与该颜色</font></span><font style="vertical-align: inherit;">相邻。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">{black, white, empty, maximal-non-black, maximal-non-white}</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">区域分别</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是 {black, white, empty, non-black, non-white} 点的任何最大连接集。</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">最大</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">意味着不存在包含它的此类点的严格更大的连接集。
+</font></font></li></ol>
+
+<hr>
+
+<h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+伪法律举动
+</font></font></h3>
+<ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">自由的</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">黑色或白色区域的任何空白点接壤它。</font></font></li>
+<li> <span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">解决</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">颜色的</font><span class="definition"><font style="vertical-align: inherit;">捕获</font></span><font style="vertical-align: inherit;">包括清空该颜色区域的所有点而没有自由。</font><font style="vertical-align: inherit;">在游戏过程中每次以这种方式清空一个点都会增加</font><font style="vertical-align: inherit;">该颜色</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">的捕获</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">总数</font><font style="vertical-align: inherit;">。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">伪合法的举动</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">包括一个玩家执行以下操作：
+  </font></font><ul>
+  <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">用玩家的颜色为空点着色。</font></font></li>
+  <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">然后解决对手颜色的捕获。</font></font></li>
+  <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">然后解析玩家颜色的捕获。</font></font></li>
+  </ul><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+...受到限制，即这不得导致与这些步骤之前相同的网格着色。
+</font><span class="multiStoneSuicide multiStoneSuicideDisallowed"><font style="vertical-align: inherit;">
+... </font></span><span class="multiStoneSuicide multiStoneSuicideDisallowed"><span class="condition"><font style="vertical-align: inherit;">（如果 MultiStoneSuicide 被禁止）</font></span></span><span class="multiStoneSuicide multiStoneSuicideDisallowed"><font style="vertical-align: inherit;">并且还受到解决玩家自己颜色的捕获不能清空任何点的限制。
+</font></span><font style="vertical-align: inherit;">
+对于通过解析捕获的步骤清空的任何区域，我们说移动</font><span class="definition"><font style="vertical-align: inherit;">捕获了</font></span><font style="vertical-align: inherit;">这些区域。
+</font></font><span class="multiStoneSuicide multiStoneSuicideDisallowed">
+<br><font style="vertical-align: inherit;"></font><span class="condition"><font style="vertical-align: inherit;"></font></span><font style="vertical-align: inherit;"></font></span>
+<br>
+<br><font style="vertical-align: inherit;"></font><span class="definition"><font style="vertical-align: inherit;"></font></span><font style="vertical-align: inherit;"></font></li>
+</ol>
+
+<hr>
+
+<h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+附加定义
+</font></font></h3>
+
+<span class="scoringTerritory taxSeki taxAll">
+<ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">与黑色和白色接壤的空白区域是</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">女性区域</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果黑色或白色区域</font><font style="vertical-align: inherit;">只有一个自由，则它</font><font style="vertical-align: inherit;">处于</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">atari 中</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">{maximal-non-white, maximal-non-black} 区域是一个 {black, white}</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">独立生命区域，</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果它不包含任何女性区域或 atari 中的任何区域。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note1" id="ref1"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[1]</font></font></a></li>
+</ol>
+</span>
+
+<span class="selfPlayOpts selfPlayOptsEnabled">
+<ol start="4">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果不存在任何导致清空 R 的相反颜色的连续伪合法移动序列，则</font><font style="vertical-align: inherit;">黑色或白色区域 R 是一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">pass-alive-group</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note2" id="ref2"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[2]</font></font></a></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">{maximal-non-black, maximal-non-white} 区域 R 是</font><font style="vertical-align: inherit;">{Black, White} 的</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">pass-alive-territory</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，如果与它接壤的所有 {black, white} 区域都是pass-alive-groups，并且所有或所有但R 中的一个点分别与 {black, white} pass-alive-group 相邻。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note3" id="ref3"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[3]</font></font></a>
+</li>
+</ol>
+</span>
+
+<hr>
+
+<h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+主要阶段
+</font></font></h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+
+游戏从一个主要的游戏阶段开始，</font></font><span class="scoringTerritory"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">然后可能是一两个清理阶段</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。
+
+</font></font><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+在主要阶段，</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">状态</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">包括：
+</font></font></p><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">网格着色。</font></font></li>
+<li class="koRule koSimple koSituational"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 KoRule 是 Simple 或 Situational SuperKo）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：此外，下一个回合玩家的颜色。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用了按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：此外，是否至少发生了一次通过。</font></font></li>
+</ul>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+从空方格开始，玩家交替轮流，从黑色开始。</font><font style="vertical-align: inherit;">一</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">转</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">的主要阶段是通过或合法的举动。
+</font></font></p><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">甲</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">通</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">割让没有效果的匝（但可能结束阶段，如下文所述）。</font></font></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">合法的移动</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">过程中的主要阶段是任何pseudolegal举动...
+</font></font><ul>
+<li class="koRule koSimple"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 KoRule 是简单的）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：...不会导致对手上一轮开始时的状态。</font></font></li>
+<li class="koRule koPositional koSituational"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 KoRule 是 Positional 或 Situational SuperKo）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：...不会导致任何更早的状态。</font></font></li>
+</ul>
+</li>
+</ul>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+主要阶段在以下时间结束：
+</font></font></p><ol>
+<li class="hasButton buttonNotUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 Button 未使用）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：有 2 次连续传球。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：有2次连续传球，忽略比赛的第一次传球。</font></font></li>
+<li class="koRule koSimple"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 KoRule 很简单）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：此外，如果出现以下情况，该阶段也会结束：
+</font></font><ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">玩家从玩家之前已经离开过的状态开始传球。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note4" id="ref4"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[4]</font></font></a></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或者在玩家回合开始时，当前状态自任一玩家最近一次传球以来已经发生过两次。</font><font style="vertical-align: inherit;">在这种情况下，不仅主要阶段结束，整个游戏也立即结束，结果是“无结果”。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note5" id="ref5"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[5]</font></font></a></li>
+</ol>
+</li>
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果启用了 SelfPlayOpts）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：此外，如果棋盘上的每个点都属于通行组或通行区域，则该阶段也会在回合结束时结束。</font><font style="vertical-align: inherit;">在这种情况下，整个游戏也会立即结束，并且就像游戏结束时两个玩家反复传球而没有进一步的合法移动或其他动作一样得分。</font></font></li>
+</ol>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+主要阶段结束后：
+</font></font></p><p>
+
+<span class="scoringRule scoringTerritory">
+<span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 ScoringRule 是 Territory）</font></font></span>
+<br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+游戏没有结束或得分，而是继续进行两个清理阶段（参见下面的“清理阶段”部分）。
+</font></font></span>
+
+</p><div class="scoringRule scoringArea">
+<span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 ScoringRule 是 Area）</font></font></span>
+<br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+游戏结束，得分如下：
+</font></font><ul>
+
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果启用了 SelfPlayOpts）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：在得分之前，对于每种颜色，清空该颜色的所有点在对方颜色的传球区域内。</font></font></li>
+
+<li class="taxRule taxNone"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 为 None）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 为其颜色的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于以颜色而不是相反颜色为边界的空白区域中的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白色，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家是第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+
+<li class="taxRule taxSeki"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是 Seki）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 为其颜色的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白色，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家是第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+
+<li class="taxRule taxAll"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是全部）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 为其颜色的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">他们颜色的每个独立生活区域 -2 分。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白色，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家是第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+
+</ul>
+
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+尽管让分游戏不是这些规则的重点，但请参阅</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note11" id="ref11"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[11]</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">了解有关让分游戏评分的一些说明。
+</font></font></span>
+
+<p>
+<span class="gameEnd"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">得分高者获胜，或平局。</font></font></span>
+
+</p></div>
+
+<hr>
+
+<div class="scoringTerritory">
+<h3><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+清理阶段
+</font></font></h3>
+<span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这些阶段仅在</font></font><span class="scoringRule"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">scoreRule 为 Territory</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">时发生</font><font style="vertical-align: inherit;">。</font></font></span>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+Cleanup 旨在尝试匹配大多数在正常日本规则下统治和得分的方式，只要玩家在清理期间以自私自利的方式最大化他们的得分。</font><font style="vertical-align: inherit;">从广义上讲，这是通过在（第二个）清理阶段为玩家每次移动提供 1 点补偿来完成的，这样玩家现在可以捕获死石并​​解决所有争议，而不会因填充领土而损失积分。
+
+</font></font></p><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+还管理了各种细节以实施日本规则的其他怪癖。</font><font style="vertical-align: inherit;">包括关内无点数，以及日本对每个位置的“独立”概念，使得棋盘某一部分的劫威胁不会影响棋盘其余部分的状态。</font><font style="vertical-align: inherit;">例如，即使在棋盘的其余部分存在不可移除的劫持威胁，在这些规则的最佳玩法下，弯角四角仍然会被判定为死。</font><font style="vertical-align: inherit;">很多这样做的机制都是基于日本的规则本身，试图将他们的精神形式化，试图让他们足够严谨以进行自我游戏。
+
+</font></font></p><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+
+但是，我们的目标不是 100% 完美匹配。</font><font style="vertical-align: inherit;">例如，在这个规则集下，</font></font><a href="https://senseis.xmp.net/?TorazuSanmoku"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">三分不捕获</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（通常）将完全自然地是三分不捕获，不需要任何特殊裁决，与传统的日本裁决相匹配（实际上，证明它是合理的）。</font><font style="vertical-align: inherit;">但现代日本的规则反而将其视为关，其中黑色必须让步到两点才能得到任何东西。</font><font style="vertical-align: inherit;">这些规则和日本规则之间的更奇特的位置也会有所不同。
+
+</font></font></p><h4><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 清理阶段基础知识和定义 </font></font></h4>
+
+<ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">甲</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">KO-移动</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">用于在位置上的播放器是任何pseudolegal举动M其中对手将具有响应一个pseudolegal移动时，</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">KO-应答</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，这将导致在完全网格之前M.着色</font></font></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">除了网格着色之外，网格上的点可能会被标记为</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ko-recapture-blocked</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></li>
+
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">清理阶段</font><font style="vertical-align: inherit;">的</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">状态</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">包括网格着色以及所有点的 ko-recapture-blocked 状态和下一个转弯的玩家的颜色。</font></font></li>
+</ol>
+
+<h4><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 清理阶段游戏 </font></font></h4>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+清理持续两个阶段</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note6" id="ref6"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[6]</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font><font style="vertical-align: inherit;">在每个阶段，从上一阶段结束时的网格着色开始，玩家交替轮流，从上一阶段最后一轮的玩家的对手开始。</font><font style="vertical-align: inherit;">清理中的转弯要么是通行证，要么是合法移动，要么是解除封锁，重新夺回行动。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note7" id="ref7"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[7]</font></font></a>
+</p><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">甲</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">通</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">割让没有效果的匝（但可能结束阶段，如下文所述）。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">合法的移动</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">过程中清除阶段由玩家任何pseudolegal举动，要么...
+  </font></font><ul>
+  <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">不是 ko-move。</font></font></li>
+  <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是一个ko-move，两者都...
+    </font></font><ul>
+    <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">不捕获任何包含标记为 ko-recapture-blocked 的点的区域。</font></font></li>
+    <li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">并且该玩家在同一清理阶段没有在任何较早的回合中在完全相同的点上以完全相同的网格着色进行合法移动。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note8" id="ref8"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[8]</font></font></a></li>
+    </ul><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+  然后，接着将移动着色的点标记为 ko-recapture-blocked。
+  </font></font></li>
+  </ul><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+  然后，随后取消标记所有网格颜色为空的 ko-recapture-blocked 点。
+</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一个</font></font><span class="definition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">解除阻塞-KO-再捕获</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">动作由玩家选择对置的颜色，是在打吃和标记为KO重捕封闭，并除去标记的AA单点区域的。</font></font></li>
+</ul>
+
+<h4><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> 清理阶段结束和评分 </font></font></h4>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+清理阶段在以下任一情况后结束：
+</font></font></p><ol>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">有两次连续传球。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或者玩家从一个玩家在同一阶段之前已经离开过的状态离开。</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note9" id="ref9"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[9]</font></font></a></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或者在玩家回合开始时，当前状态已经发生过两次，因为该阶段中任一玩家最近一次传球。</font><font style="vertical-align: inherit;">在这种情况下，不仅阶段结束，整个游戏也立即结束，结果是“无结果”。</font></font></li>
+</ol>
+
+<p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+第一个清理阶段结束后，第二个清理阶段立即开始，网格着色相同，但所有 ko-recapture-blocks 都没有标记。
+
+</font></font></p><p><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+第二次清理阶段结束后，游戏结束，计分如下：
+</font></font></p><ul>
+
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果启用了 SelfPlayOpts）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：在得分之前，对于每种颜色，清空该颜色的所有点在对方颜色的传球区域内。</font><font style="vertical-align: inherit;">以这种方式清空的点也会增加该点颜色的捕获总数。</font></font></li>
+
+<li class="taxRule taxNone"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 为 None）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于以颜色而不是相反颜色为边界的空白区域中的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+相反颜色的捕获总数。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在第二个清理阶段，该玩家的每一个动作+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 对于不在独立生命区域内的每个颜色点，并且这不是它们在第二个清理阶段开始时的颜色。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+<li class="taxRule taxSeki"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是 Seki）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+相反颜色的捕获总数。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在第二个清理阶段，该玩家的每一个动作+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 对于不在独立生命区域内的每个颜色点，并且这不是它们在第二个清理阶段开始时的颜色。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+<li class="taxRule taxAll"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是全部）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+相反颜色的捕获总数。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在第二个清理阶段，该玩家的每一个动作+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 对于不在独立生命区域内的每个颜色点，并且这不是它们在第二个清理阶段开始时的颜色。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">他们颜色的每个独立生活区域 -2 分。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+</ul><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+
+有关</font><font style="vertical-align: inherit;">评分的一些说明，</font><font style="vertical-align: inherit;">请参见</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note10" id="ref10"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[10]</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。
+</font></font><br>
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+尽管让分游戏不是这些规则的重点，但请参阅</font></font><a href="https://lightvector.github.io/KataGo/rules.html#note11" id="ref11"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[11]</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">了解有关让分游戏评分的一些说明。
+</font></font></span>
+
+<p>
+<span class="gameEnd"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">得分高者获胜，或平局。</font></font></span>
+
+</p><hr>
+
+<p>
+<span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于计算机 AI 训练</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，如果需要，也可以使用以下玩家分数的等效公式。</font><font style="vertical-align: inherit;">这个公式更类似于面积计分，因为它在棋盘上将棋盘上的每个点简单地作为+1/0/-1的总和，并且任一玩家在独立生命区域内的移动都不会影响这个“所有权”总和（只要死石被清理干净，边界和圣母院完成）。
+
+</font></font></p><ul>
+<li class="taxRule taxNone"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 为 None）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 该玩家在主要阶段或第一次清理阶段所做的每一步。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于以颜色而不是相反颜色为边界的空白区域中的每个点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于处于独立生命区域内的每个颜色点或在第二个清理阶段开始时的颜色，+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+<li class="taxRule taxSeki"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是 Seki）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 该玩家在主要阶段或第一次清理阶段所做的每一步。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于处于独立生命区域内的每个颜色点或在第二个清理阶段开始时的颜色，+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+<li class="taxRule taxAll"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果 TaxRule 是全部）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：玩家的分数是以下各项的总和：
+</font></font><ul>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-1 该玩家在主要阶段或第一次清理阶段所做的每一步。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">+1 对于它们颜色的独立生命区域内的每个空点。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于处于独立生命区域内的每个颜色点或在第二个清理阶段开始时的颜色，+1。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">他们颜色的每个独立生活区域 -2 分。</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果玩家是白人，Komi。</font></font></li>
+<li class="hasButton buttonUsed"><span class="condition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">（如果使用按钮）</font></font></span><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">：如果该玩家在主要阶段第一个传球，则 +0.5。</font></font></li>
+</ul>
+</li>
+</ul>
+
+</div>
+
+<hr>
+
+<div class="flex-vertical">
+<span class="note scoringTerritory taxSeki taxAll">
+<span><hr></span>
+<span id="note1"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[1] 意图是“independent-life-regions”表示不是seki的区域，只要双方玩家完成所有边界并填充所有dame。</font><font style="vertical-align: inherit;">这是由日本规则试图使用女性来定义“关”的方式所激发的。</font><font style="vertical-align: inherit;">使用 dame 的存在来确定 seki 实际上是一个非常聪明的解决方案 - 我最初的想法只是使用能力使传递活着，但这在实践中比使用 dame 更尴尬。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+我们还包括“atari”的条件来处理没有夫人但由于有ko嘴而仍然没有两只眼睛的群体。</font><font style="vertical-align: inherit;">这处理</font></font><a href="https://senseis.xmp.net/?DoubleKoSeki"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">双 ko seki</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref1"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note selfPlayOptsEnabled">
+<span><hr></span>
+<span id="note2"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[2] 传递活跃度可以通过一个简单的算法计算：</font></font><a href="https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">https</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;"> ://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go </font><a href="https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)"><font style="vertical-align: inherit;">)</font></a><font style="vertical-align: inherit;">。</font><font style="vertical-align: inherit;">请注意，如果允许多石自杀，技术上需要对所提供的算法进行轻微调整。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref3"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note selfPlayOptsEnabled">
+<span><hr></span>
+<span id="note3"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[3] 根据此定义，具有一个完全内部点的区域可能是活体区域，但在该内部点上添加单个石头会导致该区域不再被视为活体区域，因为单石不是传活组。</font><font style="vertical-align: inherit;">我们忽略了这个小“缺陷”，因为它使定义和算法实现更简单。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref3"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note koSimple">
+<span><hr></span>
+<span id="note4"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[4] 这种</font></font><a href="https://senseis.xmp.net/?SpightRules"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Spight 式</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">终止条件可确保发送二回一的位置将终止，即使在循环不“消耗”点数的区域得分下也是如此。</font><font style="vertical-align: inherit;">它还可以缩短区域得分下的时间，这样行为不端的机器人就不会输掉~无穷大。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+中国很多赛事采取的做法是干脆禁止发二回一。</font><font style="vertical-align: inherit;">（中国的书面规则似乎是说位置 superko，但这个书面规则通常不用于真正的比赛）。</font><font style="vertical-align: inherit;">这也很容易实现，而且 KataGo 将来可以很容易地选择支持它，因为出于所有实际目的，在简单的 ko 规则下训练的神经网络应该可以正常工作，而无需在禁止发送二返回一的引擎中进行修改。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+然而，也有</font></font><a href="https://senseis.xmp.net/?SendingThreeReturningOne"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">送三送一</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">——也许还有其他乱七八糟的情况，可以想象职业选手在没有在书面规则中提前正式列出和禁止的情况下，仍然不愿允许。</font><font style="vertical-align: inherit;">Spight 的状况是目前处理它们的更简洁的方法。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+一些</font></font><a href="https://senseis.xmp.net/?ComputerOlympiadRules"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">计算机锦标赛规则</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">通过简单地根据捕获的石头数量宣布长周期为平局/赢/输来处理这个问题。</font><font style="vertical-align: inherit;">如果需要的话，将来支持这些也很容易，而且在实践中可能也不需要重新训练神经网络。</font><font style="vertical-align: inherit;">但就目前而言，没有实际的人类规则集使用这个规则，即使在计算机世界中，位置或情境的 superko 也往往更受欢迎。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref4"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note koSimple">
+<span><hr></span>
+<span id="note5"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[5] 在一些现实生活中的人类规则下，无界循环不会在这样的时刻结束游戏本身，而是可以手动判定游戏为无结果。</font><font style="vertical-align: inherit;">但是我们这里的目标是为计算机自我对弈获得类似于日本的 ko 规则的形式化，因此指定一个精确的结束点是必要的。</font><font style="vertical-align: inherit;">无干预传球的要求绝对确保我们不会无结果地发送二回一风格的位置，即使是奇怪的不可预见的移动顺序。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref5"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note scoringTerritory">
+<span><hr></span>
+<span id="note6"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[6] 为什么有两个阶段而不是一个阶段？
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+目的是第一阶段单独引入 ko 规则的变化，允许任何被它不稳定的位置安定下来。</font><font style="vertical-align: inherit;">然后，第二阶段额外引入了每步 +1 点，允许玩家真正开始捕获死石而不会损失点数。</font><font style="vertical-align: inherit;">如果同时引入这两个更改，在某些情况下，这会导致非常不直观的“传球战”，而这在真正的日本规则中是不存在的。</font><font style="vertical-align: inherit;">如果在劫规则改变后需要采取保护性的举动，就会发生这种情况——那么我们可能会看到玩家交换劫威胁，试图成为第二个传球的人，因此成为第一个进行清理的人，因为首先进行清理会启用 +1 点而不是 +0 点的保护性移动。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+在不同阶段引入 ko 规则和得分奖励变化消除了这个问题。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref6"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note scoringTerritory">
+<span><hr></span>
+<span id="note7"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[7] unblock-ko-recapture 行动实际上是日本规则的“通行证”。</font><font style="vertical-align: inherit;">我们这样命名它是为了避免将其称为通行证，因为它与通行证在进行清理工作所需的规则方面几乎没有其他共同之处。</font><font style="vertical-align: inherit;">此外，非常方便的是，一个 ko-move 位置的 unblock-ko-recapture 总是与该位置的合法移动互斥，这意味着我们无需更改 GTP 协议或引入新的移动编码。</font><font style="vertical-align: inherit;">我们可以继续在所有现有协议中使用完全相同的 19x19 + 1 编码来表示移动。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref7"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note scoringTerritory">
+<span><hr></span>
+<span id="note8"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[8] 这种情况可以防止</font></font><a href="https://senseis.xmp.net/?DoubleKoSeki"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">双关</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在清理阶段永远循环，至少在最简单的情况下，理论上是这样。</font><font style="vertical-align: inherit;">它必须取决于确切的网格着色，而不是普遍禁止继续解除封锁并一遍又一遍地重新夺回 ko 或 kos 因为如果关是暂时的，以至于一方可以占领周围的团体来瓦解它，我们必须确保那时不禁止捕获到 ko 中。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+不幸的是，如上所述，由于双杀，这条规则仍然允许相当大的游戏延长，这使得它不适合自我游戏。</font><font style="vertical-align: inherit;">是否有更好的表述和实施仍然清晰，限制了攻击者徒劳地循环双重ko-seki的能力？</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref8"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note scoringTerritory">
+<span><hr></span>
+<span id="note9"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[9] 这种</font></font><a href="https://senseis.xmp.net/?SpightRules"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Spight 式</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">终止条件确保发送双返回一个类型的位置将终止，即使在循环不再“成本”点的第二个清理阶段也是如此。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref9"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note scoringTerritory">
+<span><hr></span>
+<span id="note10"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[10] “第二次清理阶段开始时的颜色”条件会阻止一侧的母舰向能够填充母舰的一侧授予积分。
+</font></font><br><br><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+我们继续前进，这里也有 Button Go 的津贴。</font><font style="vertical-align: inherit;">这可能看起来很奇怪，因为通常目的是作为一种通过区域评分获得区域评分粒度的方式，所以如果已经使用区域评分，为什么会想要这样的规则？</font><font style="vertical-align: inherit;">但至少当我们开始在 KataGo 中实现它时，在编程上似乎没有更复杂（甚至更简单），始终将它作为一个选项，并且如果需要，以这种方式制定它可以更自然地扩展到 Coupon Go，其中 * * 在领土评分中是否有意义。</font><font style="vertical-align: inherit;">不过 KataGo 现在实际上并不支持区域 + 按钮。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref10"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN">
+<span><hr></span>
+<span id="note11"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">[11] 许多人类规则集允许黑方在两个不同技能的玩家之间玩游戏时以 N &gt;= 2 颗棋子开始，这些棋子以规则集指定的方式放置，而白方使第一个实际游戏移动而不是黑色。</font><font style="vertical-align: inherit;">出于各种原因，在让分盘游戏中，许多这些规则集会根据 N 给予白棋加分，此外还有任何 komi 或其他设置。</font><font style="vertical-align: inherit;">有些规则集给0分，有些给N-1分，有些给N分。</font><font style="vertical-align: inherit;">(</font></font><a href="https://lightvector.github.io/KataGo/rules.html#ref11"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">返回</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)</font></font></span></span>
+
+</body></html>
