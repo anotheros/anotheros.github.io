@@ -124,7 +124,7 @@
     }
 
 // LZ properties
-    properties["LZ"] = function (kifu, node, value) {
+    properties["KATA"] = function (kifu, node, value) {
         //node.comment = value.join();
         //var strs= new Array(); //定义一数组
         var strs = value.toString().split("\n"); //字符分割
